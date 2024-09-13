@@ -1,0 +1,74 @@
+name: Build & Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: knyaka/creditshark-questions-bot
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: './'
+          file: ./Dockerfile
+          push: true
+          tags: |
+            knyaka/creditshark-bot
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - name: executing remote ssh commands using password
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port:
+          script: |
+            docker pull knyaka/creditshark-bot:latest
+            docker stop creditshark-bot
+            docker remove creditshark-bot
+            docker run -d --name creditshark-bot \
+            -e GOOGLE_CLIENT_X509_CERT_URL=${{ secrets.GOOGLE_CLIENT_X509_CERT_URL }} \
+            -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            -e GOOGLE_CLIENT_EMAIL=${{ secrets.GOOGLE_CLIENT_EMAIL }} \
+            -e GOOGLE_PRIVATE_KEY="${{ secrets.GOOGLE_PRIVATE_KEY }}" \
+            -e GOOGLE_PRIVATE_KEY_ID=${{ secrets.GOOGLE_PRIVATE_KEY_ID }} \
+            -e PROJECT_ID=${{ secrets.PROJECT_ID }} \
+            -e GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }} \
+            -e TOKEN=${{ secrets.BOT_TOKEN }} \
+            -e CHAT_ID=${{ secrets.CHAT_ID }} \
+            knyaka/creditshark-bot
