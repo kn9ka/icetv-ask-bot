@@ -6,7 +6,7 @@ const credentials = {
   project_id: process.env.PROJECT_ID,
   private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
   private_key: `
-${process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')}
+${process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/gm, '\n')}
 `,
   client_email: process.env.GOOGLE_CLIENT_EMAIL,
   client_id: process.env.GOOGLE_CLIENT_ID,
@@ -17,6 +17,7 @@ ${process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')}
   universe_domain: 'googleapis.com',
 };
 
+console.log('creds: ', credentials);
 const write = () => fs.writeFileSync('credentials.json', JSON.stringify(credentials, null, 2));
 
 module.exports = { write };
